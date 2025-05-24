@@ -7,3 +7,10 @@ runs:
   branding:
     icon: 'upload'
     color: 'orange'
+inputs:
+  api-key:
+    description: 'Decent API key for authentication'
+    required: true
+  app-name:
+    description: 'Name of the app to deploy'
+    required: true

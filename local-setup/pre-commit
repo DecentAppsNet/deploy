@@ -1,0 +1,6 @@
+#!/bin/sh
+# Copy this to .git/hooks/pre-commit for it to be active.
+REPO_ROOT=$(git rev-parse --show-toplevel)
+cd "$REPO_ROOT"
+npx esbuild src/index.ts --bundle --platform=node --outfile=index.js
+git add index.js
