@@ -1,7 +1,418 @@
-import wt from"path";async function T(t,e){let o=t.length,n=[...t];return new Promise((s,r)=>{function a(p){p().then(()=>{if(--o===0){s();return}if(n&&n.length){let c=n.pop();c&&a(c)}}).catch(c=>r(c))}let i=Math.min(e,t.length);for(let p=0;p<i;++p){let c=n.pop();c&&a(c)}}).catch(s=>{throw s})}function et(t){return/^[0-9a-f]{7}$/i.test(t)}function ot(t){return/^[0-9a-f]{40}$/i.test(t)}function V(t){return et(t)||ot(t)}function O(t){return t.length>7?t.slice(0,7):t}var v=class extends Error{constructor(e){super(e),this.name="ExpectedError"}},l=v;function nt(t){console.error(`::error::${t}`)}function y(t){console.warn(`::warning::${t}`)}function rt(t){console.log(`::notice::${t}`)}function A(t){rt(`\u2705 ${t}`)}function u(t){console.log(t)}function w(t){nt(t),process.exit(1)}function g(t){console.log(`::group::${t}`)}function m(){console.log("::endgroup::")}function $(t,e=!1){let o=`INPUT_${t.replace(/ /g,"_").toUpperCase()}`,n=process.env[o];return e&&!n&&w(`Input ${t} is required.`),n||""}function F(){let t=process.env.GITHUB_SHA;if(!t)throw new l("GITHUB_SHA environment variable is not set.");if(!V(t))throw new l("GITHUB_SHA environment variable is invalid.");return O(t)}function I(){let t=process.env.GITHUB_REPOSITORY_OWNER;if(!t)throw new l("GITHUB_REPOSITORY_OWNER environment variable is not set.");return t}function _(){let t=process.env.GITHUB_WORKSPACE;if(!t)throw new l("GITHUB_WORKSPACE environment variable is not set.");return t}function k(){return process.env.GITHUB_ACTIONS==="true"}import{opendir as st,stat as it,mkdir as Et}from"fs/promises";import{createReadStream as Vt,createWriteStream as at}from"fs";import U from"path";async function q(t){let e=[];async function o(n){let s=await st(n);for await(let r of s){let a=U.join(n,r.name);r.isDirectory()?await o(a):e.push(a)}}return await o(t),e}async function H(t){try{return(await it(t)).isDirectory()}catch{return!1}}async function ct(t,e){return new Promise((o,n)=>{let s=at(t);s.write(e),s.end(),s.on("finish",()=>o()),s.on("error",r=>n(r))}).catch(o=>{throw o})}async function pt(t,e){return ct(t,e)}async function L(t,e){let o=U.join(e,"version.txt");return await pt(o,t)}import*as C from"node:https";import{createReadStream as ut}from"fs";import{stat as lt}from"fs/promises";async function B(t,e){let o=await lt(e);return new Promise((n,s)=>{t.headers||(t.headers={}),t.headers["Content-Length"]=o.size;let r=C.request(t,i=>{let p="";i.on("data",c=>{p+=c}),i.on("end",async()=>{i.statusCode&&i.statusCode>=200&&i.statusCode<300?n({statusCode:i.statusCode,body:p}):s(new l(`Request to ${t.hostname} failed with status code: ${i.statusCode}. Response: ${p}`))})});r.on("error",i=>s(i));let a=ut(e);a.pipe(r),a.on("end",()=>r.end()),a.on("error",i=>{r.destroy(),s(i)})}).catch(n=>{throw n})}async function D(t,e){return new Promise((o,n)=>{t.headers||(t.headers={}),t.headers["Content-Length"]=Buffer.byteLength(e);let s=C.request(t,r=>{let a="";r.on("data",i=>{a+=i}),r.on("end",async()=>{r.statusCode&&r.statusCode>=200&&r.statusCode<300?o({statusCode:r.statusCode,body:a}):n(new l(`Request to ${t.hostname} failed with status code: ${r.statusCode}. Response: ${a}`))})});s.on("error",r=>n(r)),s.write(e),s.end()}).catch(o=>{throw o})}var P="1.0",G=`v${P} Decent Tools`;function dt(t){let e="<!-- v",o=t.indexOf(e);if(o===-1)return null;let n=o+e.length,s=t.indexOf(" ",n);return s===-1?null:t.substring(n,s)}function R(t,e){let o=` ${e}='`,n=t.indexOf(o);if(n===-1)return null;let s=n+o.length,r=t.indexOf("'",s);return r===-1?null:t.substring(s,r)}function ft(t){let e=dt(t);if(!e)throw Error("Failed to parse stage index format version.");if(e!==P)throw Error(`Unsupported stage index format version ${e}.`);return e}function N(){return{productionVersion:"",rollbackVersion:"",stageVersion:""}}function W(t,e,o,n){let s=`/_${t}/${e}/`;return`<!DOCTYPE html><html><head><title>Stage Index for ${t}</title><script>
-<!-- ${G}. Hand-edit at your own risk! -->
-const productionVersion='${o}';
-const rollbackVersion='${n}';
-const stageVersion='${e}';
-window.location.href='${s}';
-</script></head><body></body></html>`}async function j(t){let e=`https://decentapps.net/_${t}/index.html`,o=await fetch(e);if(!o.ok)return N();let n=await o.text();try{ft(n)}catch(i){return y(`Could not retrieve app versions from existing stage index at ${e}: ${i.message}.`),N()}let s=R(n,"productionVersion")??"",r=R(n,"rollbackVersion")??"";return{stageVersion:R(n,"stageVersion")??"",productionVersion:s,rollbackVersion:r}}var M="partner.decentapps.net";async function Y(t,e,o,n,s,r){let a=r.replace(s,""),i={hostname:M,path:`/api/deployment/${o}/${n}/${a}`,port:443,method:"PUT",headers:{"Content-Type":"application/octet-stream",Authorization:`Bearer ${e}`,"x-repo-owner":t,Accept:"application/json"}},p=await B(i,r);if(p.statusCode<200||p.statusCode>=300)throw new l(`Failed to upload file to partner service. Status code: ${p.statusCode}. Response: ${p.body}`)}async function z(t,e,o,n,s,r,a){let i=a?`/api/deployment/${o}/index.html?updateRoute=true`:`/api/deployment/${o}/index.html`,p={hostname:M,path:i,port:443,method:"PUT",headers:{"Content-Type":"text/html",Authorization:`Bearer ${e}`,"x-repo-owner":t,Accept:"application/json"}},c=W(o,n,s,r),h=await D(p,c);if(h.statusCode<200||h.statusCode>=300)throw new Error(`Failed to upload file to partner service. Status code: ${h.statusCode}. Response: ${h.body}`)}import{readFile as ht}from"fs/promises";import{fileURLToPath as gt}from"url";import K from"path";var mt=gt(import.meta.url),xt=K.dirname(mt);async function X(t){let e=await fetch(`https://raw.githubusercontent.com/DecentAppsNet/${t}/refs/heads/main/version.txt`);if(!e.ok)throw new Error(`Failed to fetch action version: ${e.statusText}`);return(await e.text()).trim()}async function J(){try{let t=K.join(xt,"version.txt");return(await ht(t,"utf8")).trim()}catch(t){throw new Error(`Failed to read local action version: ${t.message}`)}}async function yt(){try{g("Checking action version"),u("fetch local action version");let t=await J();u("fetch latest action version");let e=await X("deploy");t!==e?y(`Local action version ${t} does not match latest action version ${e}. Consider updating your action.`):u(`Local action version ${t} matches latest action version.`),m(),g("Collecting inputs"),u("commit hash");let o=F();u("repo owner");let n=I();u("Decent API key");let s=$("api-key",!0);u("app name");let r=$("app-name",!0);u("project local path");let a=_();m(),g("Preparing local dist path and version file"),u("check for dist directory");let i=wt.join(a,"dist");await H(i)||w("Local dist directory missing. Your Github workflow (e.g., .github/workflows/deploy.yml) should check out your project and build/copy to the ./dist folder all files meant for deployment."),u("write version file"),await L(o,i),m(),g("Preparing files for upload");async function p(f){let d=c[f];if(d!=="")try{u(`upload ${d}`),await Y(n,s,r,o,i,d),c[f]="",++x}catch(tt){console.warn(`Failed to upload file ${d}: ${tt.message}.`)}}u("find files at local dist path");let c=await q(i);c.length===1&&y("No files found in ./dist directory besides version.txt. Is your project building to ./dist?"),u("prepare upload tasks");let h=c.map((f,d)=>()=>p(d));m(),g(`Uploading ${h.length} files`);let x=0,b=3,Q=10;for(let f=0;f<b;++f){f>0&&console.warn(`Retrying after failed uploads... (${f+1}/${b})`);try{if(await T(h,Q),x===c.length)break}catch(d){d(`Unexpected error while uploading files: ${d.message}.`)}}x<c.length&&(x===0&&w("Failed to upload any files. See previous warnings for details."),w(`Failed to upload all files. Only ${x} of ${c.length} files were uploaded successfully. See previous warnings for details.`)),m(),g("Updating stage index"),u("fetch app versions");let{productionVersion:S,rollbackVersion:E}=await j(r);u(`uploading new stage index - stage version=${o}, production version=${S}, rollback version=${E}`),await z(n,s,r,o,S,E,!1),m();let Z=`https://decentapps.net/_${r}/${o}/`;A(`Successfully deployed ${x} files to ${Z}.`)}catch(t){let o=!k()||t.name==="ExpectedError"?t.message:"An unexpected error occurred.";w(o)}}yt();
+// main.ts
+import path3 from "path";
+
+// ../common/concurrentUtil.ts
+async function executeTasksWithMaxConcurrency(taskFunctionArray, maxConcurrency) {
+  let remainingToCompleteCount = taskFunctionArray.length;
+  const taskFunctions = [...taskFunctionArray];
+  return new Promise((resolve, reject) => {
+    function _startNextTask(taskFunction) {
+      taskFunction().then(() => {
+        if (--remainingToCompleteCount === 0) {
+          resolve();
+          return;
+        }
+        if (taskFunctions && taskFunctions.length) {
+          const nextTaskFunction = taskFunctions.pop();
+          if (nextTaskFunction) _startNextTask(nextTaskFunction);
+        }
+      }).catch((err) => reject(err));
+    }
+    const firstBatchCount = Math.min(maxConcurrency, taskFunctionArray.length);
+    for (let i = 0; i < firstBatchCount; ++i) {
+      const nextTaskFunction = taskFunctions.pop();
+      if (nextTaskFunction) _startNextTask(nextTaskFunction);
+    }
+  }).catch((err) => {
+    throw err;
+  });
+}
+
+// ../common/commitHashUtil.ts
+function _isValidShortCommitHash(commitHash) {
+  return /^[0-9a-f]{7}$/i.test(commitHash);
+}
+function _isValidLongCommitHash(commitHash) {
+  return /^[0-9a-f]{40}$/i.test(commitHash);
+}
+function isValidCommitHash(commitHash) {
+  return _isValidShortCommitHash(commitHash) || _isValidLongCommitHash(commitHash);
+}
+function shortCommitHash(commitHash) {
+  return commitHash.length > 7 ? commitHash.slice(0, 7) : commitHash;
+}
+
+// ../common/ExpectedError.ts
+var ExpectedError = class extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "ExpectedError";
+  }
+};
+var ExpectedError_default = ExpectedError;
+
+// ../common/githubUtil.ts
+function error(message) {
+  console.error(`::error::${message}`);
+}
+function warning(message) {
+  console.warn(`::warning::${message}`);
+}
+function notice(message) {
+  console.log(`::notice::${message}`);
+}
+function finalSuccess(message) {
+  notice(`\u2705 ${message}`);
+}
+function info(message) {
+  console.log(message);
+}
+function fatalError(message) {
+  error(message);
+  process.exit(1);
+}
+function startGroup(name) {
+  console.log(`::group::${name}`);
+}
+function endGroup() {
+  console.log(`::endgroup::`);
+}
+function getInput(name, required = false) {
+  const key = `INPUT_${name.replace(/ /g, "_").toUpperCase()}`;
+  const value = process.env[key];
+  if (required && !value) fatalError(`Input ${name} is required.`);
+  return value || "";
+}
+function getGithubCommitHash() {
+  const commitSha = process.env.GITHUB_SHA;
+  if (!commitSha) throw new ExpectedError_default("GITHUB_SHA environment variable is not set.");
+  if (!isValidCommitHash(commitSha)) throw new ExpectedError_default("GITHUB_SHA environment variable is invalid.");
+  return shortCommitHash(commitSha);
+}
+function getRepoOwner() {
+  const repoOwner = process.env.GITHUB_REPOSITORY_OWNER;
+  if (!repoOwner) throw new ExpectedError_default("GITHUB_REPOSITORY_OWNER environment variable is not set.");
+  return repoOwner;
+}
+function getProjectLocalPath() {
+  const localPath = process.env.GITHUB_WORKSPACE;
+  if (!localPath) throw new ExpectedError_default("GITHUB_WORKSPACE environment variable is not set.");
+  return localPath;
+}
+function runningInGithubCI() {
+  return process.env.GITHUB_ACTIONS === "true";
+}
+
+// ../common/localFileUtil.ts
+import { opendir, stat, mkdir } from "fs/promises";
+import { createReadStream, createWriteStream } from "fs";
+import path from "path";
+async function findFilesAtPath(localPath) {
+  const filepaths = [];
+  async function _findFilesAtPathHelper(currentPath) {
+    const dir = await opendir(currentPath);
+    for await (const dirEntry of dir) {
+      const fullPath = path.join(currentPath, dirEntry.name);
+      if (dirEntry.isDirectory()) {
+        await _findFilesAtPathHelper(fullPath);
+      } else {
+        filepaths.push(fullPath);
+      }
+    }
+  }
+  await _findFilesAtPathHelper(localPath);
+  return filepaths;
+}
+async function doesDirectoryExist(dirPath) {
+  try {
+    const stats = await stat(dirPath);
+    return stats.isDirectory();
+  } catch {
+    return false;
+  }
+}
+async function _put(localFilePath, data) {
+  return new Promise((resolve, reject) => {
+    const writeStream = createWriteStream(localFilePath);
+    writeStream.write(data);
+    writeStream.end();
+    writeStream.on("finish", () => resolve());
+    writeStream.on("error", (err) => reject(err));
+  }).catch((err) => {
+    throw err;
+  });
+}
+async function putText(localFilePath, text) {
+  return _put(localFilePath, text);
+}
+async function writeAppVersionFile(version, localPath) {
+  const localFilePath = path.join(localPath, "version.txt");
+  return await putText(localFilePath, version);
+}
+
+// ../common/httpUtil.ts
+import * as https from "node:https";
+import { createReadStream as createReadStream2 } from "fs";
+import { stat as stat2 } from "fs/promises";
+async function httpsRequestWithBodyFromFile(options, filePath) {
+  const fileStats = await stat2(filePath);
+  return new Promise((resolve, reject) => {
+    if (!options.headers) options.headers = {};
+    options.headers["Content-Length"] = fileStats.size;
+    const req = https.request(options, (res) => {
+      let responseData = "";
+      res.on("data", (chunk) => {
+        responseData += chunk;
+      });
+      res.on("end", async () => {
+        if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+          resolve({ statusCode: res.statusCode, body: responseData });
+        } else {
+          reject(new ExpectedError_default(`Request to ${options.hostname} failed with status code: ${res.statusCode}. Response: ${responseData}`));
+        }
+      });
+    });
+    req.on("error", (err) => reject(err));
+    const inputReadStream = createReadStream2(filePath);
+    inputReadStream.pipe(req);
+    inputReadStream.on("end", () => req.end());
+    inputReadStream.on("error", (err) => {
+      req.destroy();
+      reject(err);
+    });
+  }).catch((err) => {
+    throw err;
+  });
+}
+async function httpsRequestWithBodyFromText(options, text) {
+  return new Promise((resolve, reject) => {
+    if (!options.headers) options.headers = {};
+    options.headers["Content-Length"] = Buffer.byteLength(text);
+    const req = https.request(options, (res) => {
+      let responseData = "";
+      res.on("data", (chunk) => {
+        responseData += chunk;
+      });
+      res.on("end", async () => {
+        if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+          resolve({ statusCode: res.statusCode, body: responseData });
+        } else {
+          reject(new ExpectedError_default(`Request to ${options.hostname} failed with status code: ${res.statusCode}. Response: ${responseData}`));
+        }
+      });
+    });
+    req.on("error", (err) => reject(err));
+    req.write(text);
+    req.end();
+  }).catch((err) => {
+    throw err;
+  });
+}
+
+// ../common/toolVersionUtil.ts
+var VERSION = "1.0";
+var DECENT_TOOLS_VERSION = `v${VERSION} Decent Tools`;
+
+// ../common/stageIndexUtil.ts
+function _parseStageIndexFormat(htmlText) {
+  const versionPrefix = `<!-- v`;
+  const versionPrefixStartPos = htmlText.indexOf(versionPrefix);
+  if (versionPrefixStartPos === -1) return null;
+  const versionStartPos = versionPrefixStartPos + versionPrefix.length;
+  const versionEndPos = htmlText.indexOf(" ", versionStartPos);
+  if (versionEndPos === -1) return null;
+  return htmlText.substring(versionStartPos, versionEndPos);
+}
+function _parseVariableValue(html, variableName) {
+  const variablePrefix = ` ${variableName}='`;
+  const variablePrefixStartPos = html.indexOf(variablePrefix);
+  if (variablePrefixStartPos === -1) return null;
+  const valueStartPos = variablePrefixStartPos + variablePrefix.length;
+  const valueEndPos = html.indexOf(`'`, valueStartPos);
+  if (valueEndPos === -1) return null;
+  return html.substring(valueStartPos, valueEndPos);
+}
+function _findSupportedStageIndexFormat(htmlText) {
+  const version = _parseStageIndexFormat(htmlText);
+  if (!version) throw Error(`Failed to parse stage index format version.`);
+  if (version !== VERSION) throw Error(`Unsupported stage index format version ${version}.`);
+  return version;
+}
+function _createEmptyVarsObject() {
+  return { productionVersion: "", rollbackVersion: "", stageVersion: "" };
+}
+function createStageIndex(appName, stageVersion, productionVersion, rollbackVersion) {
+  const stageIndexUrl = `/_${appName}/${stageVersion}/`;
+  return `<!DOCTYPE html><html><head><title>Stage Index for ${appName}</title><script>
+<!-- ${DECENT_TOOLS_VERSION}. Hand-edit at your own risk! -->
+const productionVersion='${productionVersion}';
+const rollbackVersion='${rollbackVersion}';
+const stageVersion='${stageVersion}';
+window.location.href='${stageIndexUrl}';
+</script></head><body></body></html>`;
+}
+async function findAppVersions(appName) {
+  const url = `https://decentapps.net/_${appName}/index.html`;
+  const response = await fetch(url);
+  if (!response.ok) return _createEmptyVarsObject();
+  const htmlText = await response.text();
+  try {
+    _findSupportedStageIndexFormat(htmlText);
+  } catch (error2) {
+    warning(`Could not retrieve app versions from existing stage index at ${url}: ${error2.message}.`);
+    return _createEmptyVarsObject();
+  }
+  const productionVersion = _parseVariableValue(htmlText, "productionVersion") ?? "";
+  const rollbackVersion = _parseVariableValue(htmlText, "rollbackVersion") ?? "";
+  const stageVersion = _parseVariableValue(htmlText, "stageVersion") ?? "";
+  return { stageVersion, productionVersion, rollbackVersion };
+}
+
+// ../common/partnerServiceClient.ts
+var API_HOSTNAME = "partner.decentapps.net";
+async function putFile(repoOwner, partnerApiKey, appName, version, localRootPath, localFilepath) {
+  const filePath = localFilepath.replace(localRootPath, "");
+  const options = {
+    hostname: API_HOSTNAME,
+    path: `/api/deployment/${appName}/${version}/${filePath}`,
+    port: 443,
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/octet-stream",
+      "Authorization": `Bearer ${partnerApiKey}`,
+      "x-repo-owner": repoOwner,
+      "Accept": "application/json"
+    }
+  };
+  const result = await httpsRequestWithBodyFromFile(options, localFilepath);
+  if (result.statusCode < 200 || result.statusCode >= 300) {
+    throw new ExpectedError_default(`Failed to upload file to partner service. Status code: ${result.statusCode}. Response: ${result.body}`);
+  }
+}
+async function putStageIndex(repoOwner, partnerApiKey, appName, stageVersion, productionVersion, rollbackVersion, updateRoute) {
+  const path4 = updateRoute ? `/api/deployment/${appName}/index.html?updateRoute=true` : `/api/deployment/${appName}/index.html`;
+  const options = {
+    hostname: API_HOSTNAME,
+    path: path4,
+    port: 443,
+    method: "PUT",
+    headers: {
+      "Content-Type": "text/html",
+      "Authorization": `Bearer ${partnerApiKey}`,
+      "x-repo-owner": repoOwner,
+      "Accept": "application/json"
+    }
+  };
+  const stageIndexText = createStageIndex(appName, stageVersion, productionVersion, rollbackVersion);
+  const result = await httpsRequestWithBodyFromText(options, stageIndexText);
+  if (result.statusCode < 200 || result.statusCode >= 300) {
+    throw new Error(`Failed to upload file to partner service. Status code: ${result.statusCode}. Response: ${result.body}`);
+  }
+}
+
+// ../common/actionVersionUtil.ts
+import { readFile } from "fs/promises";
+import { fileURLToPath } from "url";
+import path2 from "path";
+var actionScriptUrl = fileURLToPath(import.meta.url);
+var actionPath = path2.dirname(actionScriptUrl);
+async function fetchLatestActionVersion(actionName) {
+  const response = await fetch(`https://raw.githubusercontent.com/DecentAppsNet/${actionName}/refs/heads/main/version.txt`);
+  if (!response.ok) throw new Error(`Failed to fetch action version: ${response.statusText}`);
+  return (await response.text()).trim();
+}
+async function fetchLocalActionVersion() {
+  try {
+    const localFilepath = path2.join(actionPath, "version.txt");
+    const versionContent = await readFile(localFilepath, "utf8");
+    return versionContent.trim();
+  } catch (error2) {
+    throw new Error(`Failed to read local action version: ${error2.message}`);
+  }
+}
+
+// main.ts
+async function deployAction() {
+  try {
+    startGroup("Checking action version");
+    info(`fetch local action version`);
+    const localActionVersion = await fetchLocalActionVersion();
+    info("fetch latest action version");
+    const latestActionVersion = await fetchLatestActionVersion("deploy");
+    if (localActionVersion !== latestActionVersion) {
+      warning(`Local action version ${localActionVersion} does not match latest action version ${latestActionVersion}. Consider updating your action.`);
+    } else {
+      info(`Local action version ${localActionVersion} matches latest action version.`);
+    }
+    endGroup();
+    startGroup("Collecting inputs");
+    info("commit hash");
+    const stageVersion = getGithubCommitHash();
+    info("repo owner");
+    const repoOwner = getRepoOwner();
+    info("Decent API key");
+    const apiKey = getInput("api-key", true);
+    info("app name");
+    const appName = getInput("app-name", true);
+    info("project local path");
+    const projectLocalPath = getProjectLocalPath();
+    endGroup();
+    startGroup("Preparing local dist path and version file");
+    info("check for dist directory");
+    const localDistPath = path3.join(projectLocalPath, "dist");
+    if (!await doesDirectoryExist(localDistPath)) fatalError(`Local dist directory missing. Your Github workflow (e.g., .github/workflows/deploy.yml) should check out your project and build/copy to the ./dist folder all files meant for deployment.`);
+    info("write version file");
+    await writeAppVersionFile(stageVersion, localDistPath);
+    endGroup();
+    startGroup("Preparing files for upload");
+    async function _uploadOneFileTask(localFilepathI) {
+      const localFilepath = localFilepaths[localFilepathI];
+      if (localFilepath === "") return;
+      try {
+        info(`upload ${localFilepath}`);
+        await putFile(repoOwner, apiKey, appName, stageVersion, localDistPath, localFilepath);
+        localFilepaths[localFilepathI] = "";
+        ++uploadCount;
+      } catch (error2) {
+        console.warn(`Failed to upload file ${localFilepath}: ${error2.message}.`);
+      }
+    }
+    info("find files at local dist path");
+    const localFilepaths = await findFilesAtPath(localDistPath);
+    if (localFilepaths.length === 1) warning("No files found in ./dist directory besides version.txt. Is your project building to ./dist?");
+    info("prepare upload tasks");
+    const uploadTasks = localFilepaths.map((_, index) => () => _uploadOneFileTask(index));
+    endGroup();
+    startGroup(`Uploading ${uploadTasks.length} files`);
+    let uploadCount = 0;
+    const MAX_FAIL_COUNT = 3;
+    const MAX_CONCURRENT_UPLOADS = 10;
+    for (let failCount = 0; failCount < MAX_FAIL_COUNT; ++failCount) {
+      if (failCount > 0) console.warn(`Retrying after failed uploads... (${failCount + 1}/${MAX_FAIL_COUNT})`);
+      try {
+        await executeTasksWithMaxConcurrency(uploadTasks, MAX_CONCURRENT_UPLOADS);
+        if (uploadCount === localFilepaths.length) break;
+      } catch (error2) {
+        error2(`Unexpected error while uploading files: ${error2.message}.`);
+      }
+    }
+    if (uploadCount < localFilepaths.length) {
+      if (uploadCount === 0) fatalError("Failed to upload any files. See previous warnings for details.");
+      fatalError(`Failed to upload all files. Only ${uploadCount} of ${localFilepaths.length} files were uploaded successfully. See previous warnings for details.`);
+    }
+    endGroup();
+    startGroup("Updating stage index");
+    info("fetch app versions");
+    const { productionVersion, rollbackVersion } = await findAppVersions(appName);
+    info(`uploading new stage index - stage version=${stageVersion}, production version=${productionVersion}, rollback version=${rollbackVersion}`);
+    await putStageIndex(repoOwner, apiKey, appName, stageVersion, productionVersion, rollbackVersion, false);
+    endGroup();
+    const stageUrl = `https://decentapps.net/_${appName}/${stageVersion}/`;
+    finalSuccess(`Successfully deployed ${uploadCount} files to ${stageUrl}.`);
+  } catch (error2) {
+    const showErrorDetails = !runningInGithubCI() || error2.name === "ExpectedError";
+    const errorMessage = showErrorDetails ? error2.message : "An unexpected error occurred.";
+    fatalError(errorMessage);
+  }
+}
+deployAction();
